@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f1f5f9">
+  <meta name="description" content="计算反激变压器的初级励磁电感、CCM 临界输入电压、磁芯气隙、匝数和线径。">
+  <title>反激变压器计算器 · 硬件设计台</title>
+  <link rel="stylesheet" href="style.css">
+  <script defer src="model.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="top-inner">
+      <a class="brand" href="#top" aria-label="硬件设计台，返回顶部">
+        <span class="brand-mark"><svg viewBox="0 0 28 28" fill="none" aria-hidden="true"><path d="M3 15h4l3.4-7 5.1 13 3.4-7H25" stroke="currentColor" stroke-width="2.15" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <span>硬件设计台</span>
+      </a>
+      <nav aria-label="页面导航">
+        <a href="#parameters" aria-current="location">设计参数</a>
+        <a href="#results">计算结果</a>
+        <a href="#winding">绕组设计</a>
+        <a href="#reference">计算公式</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="page" id="top">
+    <div class="intro">
+      <h1>反激变压器计算器</h1>
+    </div>
+
+    <div class="workspace">
+      <section class="parameters" id="parameters" aria-labelledby="parameters-title">
+        <div class="panel-head">
+          <div class="head-label"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="8" cy="6" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="10" cy="18" r="2"/></svg></span><h2 id="parameters-title">设计参数</h2></div>
+          <button type="button" class="text-button" id="reset" title="恢复 140 W 双路示例"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11a8 8 0 1 1 2 6M4 5v6h6"/></svg>载入示例</button>
+        </div>
+
+        <form id="design">
+          <div class="panel form-section">
+            <div class="form-title"><h3>输入电压</h3><span>变压器前级 DC 母线</span></div>
+            <div class="field-grid three" id="input-fields"></div>
+          </div>
+          <div class="panel form-section">
+            <div class="form-title"><h3>输出绕组</h3><label class="select-wrap count"><span class="sr-only">输出路数</span><select id="output-count" name="outputCount"><option value="1">1 路输出</option><option value="2" selected>2 路输出</option><option value="3">3 路输出</option><option value="4">4 路输出</option><option value="5">5 路输出</option><option value="6">6 路输出</option></select></label></div>
+            <div class="outputs" id="outputs"></div>
+            <div class="power-total"><span>满载总功率</span><output id="total-power" for="output-count">140 <small>W</small></output></div>
+          </div>
+          <div class="panel form-section">
+            <div class="form-title"><h3>开关条件</h3></div>
+            <div class="field-grid two" id="switch-fields"></div>
+            <div class="field-grid two block-field">
+              <label class="field"><span>匝比设定</span><span class="select-wrap"><select name="ratioMode" id="ratio-mode"><option value="reflected">按目标反射电压</option><option value="custom" selected>自定义主反馈匝比</option></select></span></label>
+              <div id="reflected-field"></div>
+            </div>
+            <div id="ratio-fields" class="field-grid two block-field" hidden>
+              <label class="field"><span>初级比例 Np</span><span class="input-wrap"><input type="number" inputmode="numeric" name="ratioPrimary" value="66" min="1" max="9007199254740991" step="1" required disabled aria-describedby="ratio-note"></span></label>
+              <label class="field"><span>主反馈比例 Ns1</span><span class="input-wrap"><input type="number" inputmode="numeric" name="ratioSecondary" value="6" min="1" max="9007199254740991" step="1" required disabled aria-describedby="ratio-note"></span></label>
+            </div>
+            <p id="ratio-note" class="field-note" hidden></p>
+            <label class="field block-field"><span>满载临界点目标</span><span class="select-wrap"><select name="target"><option value="low">最低输入 · 优先保持 DCM</option><option value="nominal" selected>额定输入 · 临界导通</option><option value="high">最高输入 · 扩大 CCM 范围</option></select></span></label>
+          </div>
+          <details class="panel advanced">
+            <summary><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1m0-12.8-2.1 2.1m-8.6 8.6-2.1 2.1"/><circle cx="12" cy="12" r="5.4"/></svg>高级参数与磁芯</span><svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
+            <div class="field-grid two" id="advanced-fields"></div>
+            <label class="field block-field"><span>磁芯 / 骨架</span><span class="select-wrap"><select name="core" id="core"><option value="custom">自定义磁芯</option></select></span></label>
+            <div class="field-grid two block-field" id="core-fields" hidden></div>
+            <div id="core-info" class="field-note"></div>
+            <a id="core-datasheet" class="help-link" target="_blank" rel="noopener" hidden>查看 TDK 磁芯与骨架手册 ↗</a>
+          </details>
+          <div class="submit-area">
+            <p class="form-error" id="form-error" role="alert" hidden></p>
+            <button type="submit" class="primary-button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m13 2-8 12h6l-1 8 9-12h-6z"/></svg>计算变压器</button>
+            <div class="field-note pending" id="pending" role="status" hidden>参数已修改，点击计算更新结果。</div>
+          </div>
+        </form>
+      </section>
+
+      <section class="results" id="results" aria-labelledby="results-title">
+        <div class="panel result-summary">
+          <div class="results-head"><div class="head-label"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 13h4l3-6 4 11 3-5h4"/></svg></span><h2 id="results-title">计算结果</h2></div><span class="live"><i></i><span id="result-status">已计算</span></span></div>
+          <div class="metrics" id="metrics"></div>
+        </div>
+        <section class="panel chart-panel" aria-labelledby="chart-title">
+          <div class="chart-head">
+            <div><h2 id="chart-title">CCM / DCM 工作区间</h2><p>输入电压与总输出功率的关系</p></div>
+            <div class="legend"><span><i class="ccm"></i>CCM</span><span><i class="dcm"></i>DCM</span></div>
+          </div>
+          <div id="chart" class="chart"></div>
+          <div class="chart-controls">
+            <label for="load">当前负载 <output id="load-percent" for="load">100%</output></label>
+            <input type="range" id="load" min="5" max="100" step="1" value="100" aria-label="当前负载百分比">
+            <span class="mono" id="load-watts">140.0 W</span>
+          </div>
+          <div class="chart-insight" id="chart-insight"></div>
+        </section>
+
+        <section class="panel table-panel" aria-labelledby="points-title">
+          <div class="content-head"><h2 id="points-title">工作点</h2><span id="points-load"></span></div>
+          <div class="scroll-table"><table>
+            <thead><tr><th>输入</th><th>模式</th><th>占空比</th><th>初级峰值</th><th>初级 RMS</th></tr></thead>
+            <tbody id="points"></tbody>
+          </table></div>
+        </section>
+      </section>
+    </div>
+
+    <section class="winding-section" id="winding" aria-labelledby="winding-title">
+      <div class="section-heading"><div><h2 id="winding-title">磁芯与绕组</h2><p>根据满载电流、磁通上限和磁芯截面估算。</p></div>
+        <label class="field structure"><span>绕组结构</span><span class="select-wrap"><select id="structure"><option value="split">初级分段夹绕</option><option value="split-feedback">初级与主反馈分段夹绕</option><option value="simple">初级单段绕制</option></select></span></label>
+      </div>
+      <div class="alerts" id="warnings" aria-live="polite"></div>
+      <div class="mag-metrics" id="mag-metrics"></div>
+      <div class="winding-grid">
+        <section class="panel table-panel" aria-labelledby="wire-title">
+          <div class="content-head"><h2 id="wire-title">匝数与线径</h2><span>满载设计值</span></div>
+          <div class="scroll-table"><table>
+            <thead><tr><th>绕组</th><th>匝数</th><th>RMS 估算</th><th>裸铜线径</th><th>电压估算</th></tr></thead>
+            <tbody id="wires"></tbody>
+          </table></div>
+          <p class="panel-note" id="wires-note"></p>
+        </section>
+        <section class="panel diagram-panel" aria-labelledby="diagram-title">
+          <div class="content-head"><h2 id="diagram-title">绕组剖面示意</h2><span>从骨架向外</span></div>
+          <div class="diagram" id="diagram"></div>
+          <p class="panel-note" id="diagram-note"></p>
+        </section>
+      </div>
+    </section>
+
+    <section id="reference" class="panel reference" aria-labelledby="reference-title">
+      <h2 id="reference-title">计算公式</h2>
+      <p class="formula-note">固定开关频率 · 理想耦合 · 恒定效率</p>
+      <div class="formula-grid">
+        <section class="formula-card" aria-labelledby="formula-power">
+          <h3 id="formula-power">输入功率与反射电压</h3>
+          <div class="equation"><math displaystyle="true"><msub><mi>P</mi><mi>out</mi></msub><mo>=</mo><mo>∑</mo><msub><mi>P</mi><mi>i</mi></msub></math></div>
+          <div class="equation"><math displaystyle="true"><msub><mi>P</mi><mi>in</mi></msub><mo>=</mo><mfrac><msub><mi>P</mi><mi>out</mi></msub><mi>η</mi></mfrac></math></div>
+          <div class="equation"><math displaystyle="true"><msub><mi>V</mi><mi>r</mi></msub><mo>=</mo><mrow><mfrac><msub><mi>N</mi><mi>p</mi></msub><msub><mi>N</mi><mi>s1</mi></msub></mfrac><mo>⁢</mo><mrow><mo>(</mo><msub><mi>V</mi><mi>o1</mi></msub><mo>+</mo><msub><mi>V</mi><mi>F1</mi></msub><mo>)</mo></mrow></mrow></math></div>
+          <p><i>η</i> 为效率的小数值，<i>V</i><sub>F1</sub> 为 OUT 1 的整流压降。</p>
+        </section>
+        <section class="formula-card" aria-labelledby="formula-boundary">
+          <h3 id="formula-boundary">BCM 边界与初级感量</h3>
+          <div class="equation"><math displaystyle="true"><msub><mi>D</mi><mi>B</mi></msub><mo>=</mo><mfrac><msub><mi>V</mi><mi>r</mi></msub><mrow><msub><mi>V</mi><mi>in</mi></msub><mo>+</mo><msub><mi>V</mi><mi>r</mi></msub></mrow></mfrac></math></div>
+          <div class="equation"><math displaystyle="true"><msub><mi>P</mi><mi>B</mi></msub><mo>=</mo><mfrac><mrow><mi>η</mi><mo>⁢</mo><msup><mrow><mo>(</mo><mrow><msub><mi>V</mi><mi>in</mi></msub><mo>⁢</mo><msub><mi>D</mi><mi>B</mi></msub></mrow><mo>)</mo></mrow><mn>2</mn></msup></mrow><mrow><mn>2</mn><mo>⁢</mo><msub><mi>L</mi><mi>p</mi></msub><mo>⁢</mo><msub><mi>f</mi><mi>s</mi></msub></mrow></mfrac></math></div>
+          <div class="equation"><math displaystyle="true"><msub><mi>L</mi><mi>B</mi></msub><mo>=</mo><mfrac><msup><mrow><mo>(</mo><mrow><msub><mi>V</mi><mi>target</mi></msub><mo>⁢</mo><msub><mi>D</mi><mi>B,target</mi></msub></mrow><mo>)</mo></mrow><mn>2</mn></msup><mrow><mn>2</mn><mo>⁢</mo><msub><mi>f</mi><mi>s</mi></msub><mo>⁢</mo><msub><mi>P</mi><mi>in</mi></msub></mrow></mfrac></math></div>
+          <div class="equation"><math displaystyle="true"><mi>U</mi><mo>=</mo><msqrt><mrow><mrow><mn>2</mn><mo>⁢</mo><msub><mi>L</mi><mi>p</mi></msub><mo>⁢</mo><msub><mi>f</mi><mi>s</mi></msub><mo>⁢</mo><msub><mi>P</mi><mi>in</mi></msub></mrow></mrow></msqrt></math></div>
+          <div class="equation"><math displaystyle="true"><msub><mi>V</mi><mi>in,B</mi></msub><mo>=</mo><mfrac><mrow><msub><mi>V</mi><mi>r</mi></msub><mo>⁢</mo><mi>U</mi></mrow><mrow><msub><mi>V</mi><mi>r</mi></msub><mo>−</mo><mi>U</mi></mrow></mfrac></math></div>
+          <p>同一输入下，<i>P</i><sub>out</sub> 高于 <i>P</i><sub>B</sub> 为 CCM，低于它为 DCM。<i>U</i> ≥ <i>V</i><sub>r</sub> 时，全输入范围为 CCM。</p>
+          <p>若最低输入处 <i>D</i><sub>B</sub> 超过 <i>D</i><sub>max</sub>，推荐感量取 <i>L</i><sub>B</sub> 与 (<i>V</i><sub>in,min</sub><i>D</i><sub>max</sub>)<sup>2</sup> / (2<i>f</i><sub>s</sub><i>P</i><sub>in</sub>) 中较小者。</p>
+        </section>
+        <section class="formula-card" aria-labelledby="formula-current">
+          <h3 id="formula-current">占空比与初级电流</h3>
+          <div class="equation"><math displaystyle="true"><msub><mi>D</mi><mi>CCM</mi></msub><mo>=</mo><msub><mi>D</mi><mi>B</mi></msub></math></div>
+          <div class="equation"><math displaystyle="true"><msub><mi>D</mi><mi>DCM</mi></msub><mo>=</mo><mfrac><mi>U</mi><msub><mi>V</mi><mi>in</mi></msub></mfrac></math></div>
+          <div class="equation"><math displaystyle="true"><mrow><mo>Δ</mo><mi>I</mi></mrow><mo>=</mo><mfrac><mrow><msub><mi>V</mi><mi>in</mi></msub><mo>⁢</mo><mi>D</mi></mrow><mrow><msub><mi>L</mi><mi>p</mi></msub><mo>⁢</mo><msub><mi>f</mi><mi>s</mi></msub></mrow></mfrac></math></div>
+          <div class="equation"><math displaystyle="true"><msub><mi>I</mi><mi>pk</mi></msub><mo>=</mo><msub><mi>I</mi><mi>val</mi></msub><mo>+</mo><mrow><mo>Δ</mo><mi>I</mi></mrow></math></div>
+          <div class="equation"><math displaystyle="true"><msub><mi>I</mi><mi>p,rms</mi></msub><mo>=</mo><msqrt><mrow><mfrac><mrow><mi>D</mi><mo>⁢</mo><mrow><mo>(</mo><msup><msub><mi>I</mi><mi>pk</mi></msub><mn>2</mn></msup><mo>+</mo><mrow><msub><mi>I</mi><mi>pk</mi></msub><mo>⁢</mo><msub><mi>I</mi><mi>val</mi></msub></mrow><mo>+</mo><msup><msub><mi>I</mi><mi>val</mi></msub><mn>2</mn></msup><mo>)</mo></mrow></mrow><mn>3</mn></mfrac></mrow></msqrt></math></div>
+          <p><i>f</i><sub>s</sub> 为开关频率。DCM 时谷值电流 <i>I</i><sub>val</sub> = 0，CCM 时 <i>I</i><sub>val</sub> = <i>P</i><sub>in</sub> / (<i>V</i><sub>in</sub><i>D</i>) − Δ<i>I</i> / 2。</p>
+        </section>
+        <section class="formula-card" aria-labelledby="formula-magnetics">
+          <h3 id="formula-magnetics">匝数、磁通与气隙</h3>
+          <div class="equation"><math displaystyle="true"><msub><mi>N</mi><mi>p,min</mi></msub><mo>=</mo><mo>⌈</mo><mfrac><mrow><msub><mi>L</mi><mi>p</mi></msub><mo>⁢</mo><msub><mi>I</mi><mi>pk,max</mi></msub><mo>⁢</mo><mrow><mo>(</mo><mn>1</mn><mo>+</mo><mi>m</mi><mo>)</mo></mrow></mrow><mrow><msub><mi>A</mi><mi>min</mi></msub><mo>⁢</mo><msub><mi>B</mi><mi>lim</mi></msub></mrow></mfrac><mo>⌉</mo></math></div>
+          <div class="equation"><math displaystyle="true"><msub><mi>B</mi><mi>pk</mi></msub><mo>=</mo><mfrac><mrow><msub><mi>L</mi><mi>p</mi></msub><mo>⁢</mo><msub><mi>I</mi><mi>pk,max</mi></msub></mrow><mrow><msub><mi>N</mi><mi>p</mi></msub><mo>⁢</mo><msub><mi>A</mi><mi>min</mi></msub></mrow></mfrac></math></div>
+          <div class="equation"><math displaystyle="true"><msub><mi>A</mi><mi>L</mi></msub><mo>=</mo><mfrac><msub><mi>L</mi><mi>p</mi></msub><msup><msub><mi>N</mi><mi>p</mi></msub><mn>2</mn></msup></mfrac></math></div>
+          <div class="equation"><math displaystyle="true"><msub><mi>g</mi><mi>eq</mi></msub><mo>=</mo><mrow><msub><mi>μ</mi><mn>0</mn></msub><mo>⁢</mo><msub><mi>A</mi><mi>e</mi></msub><mo>⁢</mo><mrow><mo>(</mo><mfrac><mn>1</mn><msub><mi>A</mi><mi>L</mi></msub></mfrac><mo>−</mo><mfrac><mn>1</mn><msub><mi>A</mi><mi>L0</mi></msub></mfrac><mo>)</mo></mrow></mrow></math></div>
+          <div class="equation"><math displaystyle="true"><msub><mi>g</mi><mi>fit</mi></msub><mo>=</mo><msup><mrow><mo>(</mo><mfrac><msub><mi>A</mi><mi>L</mi></msub><msub><mi>K</mi><mn>1</mn></msub></mfrac><mo>)</mo></mrow><mrow><mn>1</mn><mo>/</mo><msub><mi>K</mi><mn>2</mn></msub></mrow></msup></math></div>
+          <p><i>m</i> 为峰值电流裕量，<i>B</i><sub>lim</sub> 为磁通上限。等效气隙适用于 <i>A</i><sub>L</sub> &lt; <i>A</i><sub>L0</sub>。手册拟合气隙采用各磁芯的 <i>K</i><sub>1</sub>、<i>K</i><sub>2</sub> 与适用范围。</p>
+        </section>
+        <section class="formula-card" aria-labelledby="formula-copper">
+          <h3 id="formula-copper">铜线面积与窗口填充</h3>
+          <div class="equation"><math displaystyle="true"><msub><mi>A</mi><mi>Cu,req</mi></msub><mo>=</mo><mfrac><msub><mi>I</mi><mi>rms</mi></msub><mi>J</mi></mfrac></math></div>
+          <div class="equation"><math displaystyle="true"><msub><mi>A</mi><mi>Cu</mi></msub><mo>=</mo><mfrac><mrow><mi>n</mi><mo>⁢</mo><mi>π</mi><mo>⁢</mo><msup><mi>d</mi><mn>2</mn></msup></mrow><mn>4</mn></mfrac></math></div>
+          <div class="equation"><math displaystyle="true"><msub><mi>k</mi><mi>Cu</mi></msub><mo>=</mo><mfrac><mrow><mo>∑</mo><mrow><mo>(</mo><mrow><msub><mi>N</mi><mi>i</mi></msub><mo>⁢</mo><msub><mi>A</mi><mi>Cu,i</mi></msub></mrow><mo>)</mo></mrow></mrow><msub><mi>A</mi><mi>N</mi></msub></mfrac></math></div>
+          <p><i>J</i> 为电流密度，<i>n</i> 为并绕股数，<i>d</i> 为裸铜线径，<i>A</i><sub>N</sub> 为骨架绕线截面。</p>
+        </section>
+        <section class="formula-card" aria-labelledby="formula-stress">
+          <h3 id="formula-stress">理想关断电压与整流反压</h3>
+          <div class="equation"><math displaystyle="true"><msub><mi>V</mi><mi>DS</mi></msub><mo>=</mo><msub><mi>V</mi><mi>in,max</mi></msub><mo>+</mo><msub><mi>V</mi><mi>r</mi></msub></math></div>
+          <div class="equation"><math displaystyle="true"><msub><mi>V</mi><mi>rev,i</mi></msub><mo>=</mo><msub><mi>V</mi><mi>o,i</mi></msub><mo>+</mo><mrow><msub><mi>V</mi><mi>in,max</mi></msub><mo>⁢</mo><mfrac><msub><mi>N</mi><mi>s,i</mi></msub><msub><mi>N</mi><mi>p</mi></msub></mfrac></mrow></math></div>
+          <p><i>V</i><sub>o,i</sub> 取整数匝比下的估算输出电压。漏感尖峰需另计。</p>
+        </section>
+      </div>
+      <h3 class="sources-title">技术文档</h3>
+      <div class="sources">
+        <a href="https://www.ti.com/document-viewer/lit/html/SSZTCW6" target="_blank" rel="noopener">TI · DCM 设计 ↗</a>
+        <a href="https://www.ti.com/document-viewer/lit/html/SSZTCY0" target="_blank" rel="noopener">TI · CCM 设计 ↗</a>
+        <a href="https://www.tdk-electronics.tdk.com/inf/80/db/fer/e_25_13_7.pdf" target="_blank" rel="noopener">TDK · EF25 ↗</a>
+        <a href="https://www.tdk-electronics.tdk.com/inf/80/db/fer/e_32_16_9.pdf" target="_blank" rel="noopener">TDK · EF32 ↗</a>
+        <a href="https://www.tdk-electronics.tdk.com/download/540150/f119bbe0ab3d6dd73ae31c6fa9dcf6b9/pdf-ecoresgeneralinformation.pdf" target="_blank" rel="noopener">TDK · 气隙公式 ↗</a>
+        <a href="https://piexpertonline.power.com/help/piexpert/en/topics/appendixa.htm" target="_blank" rel="noopener">Power Integrations · 多路输出 ↗</a>
+        <a href="https://www.power.com/sites/default/files/forum/files/AN-18.pdf" target="_blank" rel="noopener">Power Integrations · 绕组结构 ↗</a>
+      </div>
+    </section>
+  </main>
+  <footer><span>硬件设计台</span><span>反激变压器 · 工程初算</span></footer>
+</body>
+</html>
